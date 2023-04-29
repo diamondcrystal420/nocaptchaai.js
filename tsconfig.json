@@ -1,0 +1,21 @@
+{
+  "compilerOptions": {
+      "target": "ESNext",
+      "sourceMap": false,
+      "module": "commonjs",
+      "rootDir": "src",
+      "moduleResolution": "node",
+      "resolveJsonModule": true,
+      "declaration": true,
+      "declarationMap": true,
+      "outDir": "dist",
+      "removeComments": true,
+      "esModuleInterop": true,
+      "forceConsistentCasingInFileNames": true,
+      "strict": true,
+      "strictNullChecks": true,
+      "skipLibCheck": true
+  },
+  "include": ["src", "examples"],
+  "exclude": ["node_modules", "dist"]
+}
