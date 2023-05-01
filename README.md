@@ -27,7 +27,7 @@ const { NoCaptchaAI } = require('nocaptchaai.js');
 Create a new client with your NoCaptchaAI API key
 ```javascript
 // Create new client without auto balance check
-const NoCaptchaAIClient = new NoCaptchaAI("YOUR_NOCAPTCHAAI_API_KEY");
+const NoCaptchaAIClient = await NoCaptchaAI.init("YOUR_NOCAPTCHAAI_API_KEY");
 ```
 
 or
@@ -35,7 +35,7 @@ or
 Create a new client with your NoCaptchaAI API key that checks your balance before creating a task
 ```javascript
 // Create new client with auto balance check
-const NoCaptchaAIClient = new NoCaptchaAI("YOUR_NOCAPTCHAAI_API_KEY", true);
+const NoCaptchaAIClient = await NoCaptchaAI.init("YOUR_NOCAPTCHAAI_API_KEY", true);
 ```
 
 Check your balance manually
@@ -46,11 +46,13 @@ Check your balance manually
   if(accountBalance < 5) return console.log("You don't have enough funds to create a task.");
 ```
 
-Solve a hCaptcha task (basic)
+## hCaptcha
+
+Solve a hCaptcha task (basic) | cost: 5 request
 ```javascript
 const capToken = await NoCaptchaAIClient.solveProxylessHCaptcha("example.com", "005814c5-818b-43ee-ba07-fa4c965c7147");
 ```
-Solve a hCaptcha task (with proxy, recommended)
+Solve a hCaptcha task (with proxy, recommended) | cost: 5 request
 ```javascript
 const capToken = await NoCaptchaAIClient.solveHCaptcha("example.com", "005814c5-818b-43ee-ba07-fa4c965c7147", {
   type: "http",
@@ -59,6 +61,20 @@ const capToken = await NoCaptchaAIClient.solveHCaptcha("example.com", "005814c5-
   username: "user",
   password: "pw"
 });
+```
+
+## ProBot OCR Captchas
+
+Solve a OCR captcha by using a base64 encoded image | cost: 1 request
+```javascript
+  const ocrResult = await NoCaptchaAIClient.solveOCRImage("BASE_64_STRING")
+```
+
+or
+
+Solve a OCR captcha by using a URL | cost: 1 request
+```javascript
+  const ocrResult = await NoCaptchaAIClient.solveOCRImage("https://media.discordapp.net/attachments/886309080099086336/102102717165506560/SomeNiceImage.png")
 ```
 
 # Examples
