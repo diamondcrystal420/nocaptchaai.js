@@ -77,6 +77,37 @@ Solve a OCR captcha by using a URL | cost: 1 request
   const ocrResult = await NoCaptchaAIClient.solveOCRImage("https://media.discordapp.net/attachments/886309080099086336/102102717165506560/SomeNiceImage.png")
 ```
 
+## hCaptcha Image
+
+Solve a hCaptcha grid task by using the image URL or base64 | cost: 1 request
+```javascript
+  const hCaptchaResult = await NoCaptchaAIClient.solveHCaptchaImages([
+    'IMG_URL_1_OR_BASE64',
+    'IMG_URL_2_OR_BASE64',
+    'IMG_URL_3_OR_BASE64',
+    'IMG_URL_4_OR_BASE64',
+    'IMG_URL_5_OR_BASE64',
+    'IMG_URL_6_OR_BASE64',
+    'IMG_URL_7_OR_BASE64',
+    'IMG_URL_8_OR_BASE64',
+    'IMG_URL_9_OR_BASE64',
+  ], "grid", "Target Task", "en")
+```
+
+Solve a hCaptcha bounding box task by using the image URL or base64 | cost: 1 request
+```javascript
+  const hCaptchaResult = await NoCaptchaAIClient.solveHCaptchaImages([
+    'IMG_URL_OR_BASE64'
+  ], "bbox", "Target Task", "en")
+```
+
+Solve a hCaptcha multi select task by using the image URL or base64 | cost: 1 request
+```javascript
+  const hCaptchaResult = await NoCaptchaAIClient.solveHCaptchaImages([
+    'IMG_URL_OR_BASE64'
+  ], "multi", "Target Task", "en", ["CHOICE_ONE", "CHOICE_TWO", "CHOICE_THREE"])
+```
+
 # Examples
 
 For complete and more examples, check out the examples folder.

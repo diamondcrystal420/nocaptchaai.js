@@ -2,11 +2,15 @@ import axios from "axios";
 
 interface Payload {
     method: string;
-    image: string;
+    type: 'grid' | 'bbox' | 'multi';
+    images: any;
+    ln: string;
+    target: string;
+    choices ? : string[];
 }
 
 /**
- * Create a new OCR task.
+ * Create a new hCaptcha image task.
  * @returns {Promise<string>} - Promise that resolves to the result url.
  * @throws {Error} - Throws an error if the API request fails.
  * @param {Payload} imagePayload - Payload of the request.
@@ -18,6 +22,10 @@ export async function createTask(
     solveEndpoint: string,
     apiKey: string
 ): Promise < string > {
+    imagePayload.images = imagePayload.images.reduce((acc: any, val: any, index: any) => {
+        acc[index] = val;
+        return acc;
+    }, {});
     const response = await axios.post(solveEndpoint, imagePayload, {
         headers: {
             "Content-Type": "application/json",
@@ -27,5 +35,6 @@ export async function createTask(
     if (response.data.status !== "solved") {
         throw new Error(`[API Error] Error while creating new task: ${response.data}`);
     }
-    return response.data.solution;
+    if (imagePayload.type == 'grid') return response.data.solution;
+    return response.data.answer;
 }

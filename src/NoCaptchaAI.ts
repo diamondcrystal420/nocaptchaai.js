@@ -6,8 +6,11 @@ import {
     getTaskResult as getHCaptchaTokenTaskResult
 } from "./tasks/hCaptchaTokenTask";
 import {
-  createTask as createOCRTask
+    createTask as createOCRTask
 } from "./tasks/ocrTask";
+import {
+    createTask as createHCaptchaImageTask
+} from "./tasks/hCaptchaImageTask";
 
 export class NoCaptchaAI {
 
@@ -29,7 +32,10 @@ export class NoCaptchaAI {
     }
 
     public static async init(apiKey: string, autoBalanceCheck: boolean = false): Promise < NoCaptchaAI > {
-      const { solveEndpoint, balanceEndpoint } = await _getEndpoints(apiKey);
+        const {
+            solveEndpoint,
+            balanceEndpoint
+        } = await _getEndpoints(apiKey);
         const instance = new NoCaptchaAI(apiKey, solveEndpoint, balanceEndpoint, autoBalanceCheck);
         return instance;
     }
@@ -41,39 +47,26 @@ export class NoCaptchaAI {
                 "apiKey": this.apiKey,
             },
         });
-        if(result.data.Subscription) return result.data.Subscription.remaining;
+        if (result.data.Subscription) return result.data.Subscription.remaining;
         return result.data.remaining;
     }
 
-    async _isURL(url: string): Promise < boolean > {
-        const pattern = new RegExp("^(https?:\\/\\/)?" + // protocol
-            "((([a-z\\d]([a-z\\d-]*[a-z\\d])*)\\.?)+[a-z]{2,}|" + // domain name
-            "((\\d{1,3}\\.){3}\\d{1,3}))" + // ip (v4) address
-            "(\\:\\d+)?(\\/[-a-z\\d%_.~+]*)*" + //port
-            "(\\?[;&amp;a-z\\d%_.~+=-]*)?" + // query string
-            "(\\#[-a-z\\d_]*)?$", "i"); // fragment locator
-        return pattern.test(url);
+    _isURL(url: string): boolean {
+        const urlRegex = /^(?:\w+:)?\/\/([^\s.]+\.\S{2}|localhost[\:?\d]*)\S*$/;
+        return urlRegex.test(url);
     }
 
     async _getBase64FromURL(url: string): Promise < string > {
         try {
-          const isImage = /(jpeg|jpg|png|gif)$/i.test(url);
-          if (!isImage) {
-            throw new Error('The provided URL is not an image.');
-          }
-          const response = await axios.get(url, {
-            responseType: 'arraybuffer',
-          });
-          const buffer = new Uint8Array(response.data);
-          const array = Array.from(buffer);
-          const base64 = btoa(String.fromCharCode.apply(null, array));
-          return base64;
+            const response = await axios.get(url, {
+                responseType: 'arraybuffer',
+            });
+            const buffer = new Uint8Array(response.data);
+            const array = Array.from(buffer);
+            const base64 = btoa(String.fromCharCode.apply(null, array));
+            return base64;
         } catch (error) {
-          if (axios.isAxiosError(error)) {
             throw new Error(`Failed to fetch base64 image from URL: ${url}`);
-          } else {
-            throw error;
-          }
         }
     }
 
@@ -185,27 +178,90 @@ export class NoCaptchaAI {
     }
 
     /**
+     * Create a new hCaptcha token task.
+     * @returns {Promise<Object>} - Promise that resolves to the hCaptcha token.
+     * @throws {Error} - Throws an error if the API request fails.
+     * @param {string} websiteURL - URL of the website where the hCaptcha is located.
+     * @param {string} websiteKey - Site key of the hCaptcha.
+     * @param {string} userAgent - User agent of the browser, by default random user agent is used.
+     * @param {Object} [proxy] - Proxy configuration.
+     * @param {string} [proxy.password] - Proxy password.
+     * @param {string} [proxy.username] - Proxy username.
+     * @param {string} [proxy.ip] - Proxy ip.
+     * @param {number} [proxy.port] - Proxy port.
+     * @param {string} [proxy.type] - Proxy type.
+     * @param {number} [maxTries=15] - Timeout in milliseconds.
+     * @param {number} [retryInterval=5000] - Interval in milliseconds.
+     */
+    async solveHCaptchaImages(
+        images: string[],
+        captchaType: 'grid' | 'bbox' | 'multi',
+        target: string,
+        language: string = 'en',
+        choices ? : string[]
+    ): Promise < string > {
+        if (this.checkBalance) {
+            const balance = await this._getBalance();
+            if (balance < 1) throw new Error("[API Error] Your account balance smaller than 5, please add funds to your account/ upgrade your plan.");
+        }
+
+        switch (captchaType) {
+            case 'grid':
+                if (images.length != 9) throw new Error("[API Error] Invalid images, 9 images required for grid captcha type.");
+                break;
+            case 'bbox':
+                if (images.length != 1) throw new Error("[API Error] Invalid images, 1 images required for bbox captcha type.");
+                break;
+            case 'multi':
+                if (images.length != 1) throw new Error("[API Error] Invalid images, 1 image required for multi captcha type.");
+                if (!choices || choices.length < 3) throw new Error("[API Error] Invalid choices, minimum 3 choices required for multi captcha type.");
+                break;
+            default:
+                throw new Error("[API Error] Invalid captcha type, valid types are: grid, bbox, multi");
+        }
+
+        for (let i = 0; i < images.length; i++) {
+            const image = images[i];
+            if (this._isURL(image)) {
+                images[i] = await this._getBase64FromURL(image);
+            }
+        }
+
+        const result = await createHCaptchaImageTask({
+            method: "hcaptcha_base64",
+            type: captchaType,
+            ...((choices != undefined) ? {
+                choices
+            } : {}),
+            ln: language,
+            images: images,
+            target: target
+        }, this.solveEndpoint, this.apiKey);
+        return result;
+    }
+
+    /**
      * Create a new ocr task.
      * @returns {Promise<Object>} - Promise that resolves to the ocr result.
      * @throws {Error} - Throws an error if the API request fails.
      * @param {string} base64Image - base64 of the ocr image.
      */
     async solveOCRImage(
-      base64Image: string
-  ): Promise < string > {
-      if (this.checkBalance) {
-          const balance = await this._getBalance();
-          if (balance < 5) throw new Error("[API Error] Your account balance smaller than 5, please add funds to your account/ upgrade your plan.");
-      }
-      if(await this._isURL(base64Image)) {
-        base64Image = await this._getBase64FromURL(base64Image);
-      }
-      const ocrResult = await createOCRTask({
-        method: "ocr",
-        image: base64Image
-      }, "https://free.nocaptchaai.com/solve", this.apiKey);
-      return ocrResult;
-  }
+        base64Image: string
+    ): Promise < string > {
+        if (this.checkBalance) {
+            const balance = await this._getBalance();
+            if (balance < 5) throw new Error("[API Error] Your account balance smaller than 5, please add funds to your account/ upgrade your plan.");
+        }
+        if (this._isURL(base64Image)) {
+            base64Image = await this._getBase64FromURL(base64Image);
+        }
+        const ocrResult = await createOCRTask({
+            method: "ocr",
+            image: base64Image
+        }, "https://free.nocaptchaai.com/solve", this.apiKey);
+        return ocrResult;
+    }
 
     /**
      * Get the amount of the balance that is remaining.
@@ -217,13 +273,22 @@ export class NoCaptchaAI {
     }
 }
 
-async function _getEndpoints(apiKey: string): Promise < { solveEndpoint: string, balanceEndpoint: string } > {
-  const result = await axios.get("https://manage.nocaptchaai.com/api/user/get_endpoint", {
-      headers: {
-          "Content-Type": "application/json",
-          "apiKey": apiKey,
-      },
-  });
-  if(result.data.plan == "free") return { solveEndpoint: "https://free.nocaptchaai.com/solve", balanceEndpoint: "https://free.nocaptchaai.com/balance" };
-  return { solveEndpoint: "https://pro.nocaptchaai.com/solve", balanceEndpoint: "https://manage.nocaptchaai.com/balance" };
+async function _getEndpoints(apiKey: string): Promise < {
+    solveEndpoint: string,
+    balanceEndpoint: string
+} > {
+    const result = await axios.get("https://manage.nocaptchaai.com/api/user/get_endpoint", {
+        headers: {
+            "Content-Type": "application/json",
+            "apiKey": apiKey,
+        },
+    });
+    if (result.data.plan == "free") return {
+        solveEndpoint: "https://free.nocaptchaai.com/solve",
+        balanceEndpoint: "https://free.nocaptchaai.com/balance"
+    };
+    return {
+        solveEndpoint: "https://pro.nocaptchaai.com/solve",
+        balanceEndpoint: "https://manage.nocaptchaai.com/balance"
+    };
 }
